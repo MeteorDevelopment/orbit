@@ -83,7 +83,13 @@ public class Main {
     }
 
     @EventHandler
+    private void onNumba(Integer a) {
+        System.out.println("Numba: " + a);
+    }
+
+    @EventHandler
     private void onNumba(int a) {
+        // Wont be called because primitives cannot be used as events
         System.out.println("Numba: " + a);
     }
 }

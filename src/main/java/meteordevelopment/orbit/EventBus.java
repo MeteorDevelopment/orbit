@@ -130,7 +130,8 @@ public class EventBus {
     private boolean isValid(Method method) {
         if (!method.isAnnotationPresent(EventHandler.class)) return false;
         if (method.getReturnType() != void.class) return false;
+        if (method.getParameterCount() != 1) return false;
 
-        return method.getParameterCount() == 1;
+        return !method.getParameters()[0].getType().isPrimitive();
     }
 }

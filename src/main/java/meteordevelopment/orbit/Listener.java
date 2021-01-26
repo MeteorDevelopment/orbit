@@ -7,13 +7,10 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Consumer;
 
 public class Listener {
     private static Constructor<MethodHandles.Lookup> lookupConstructor;
-    private static final Map<Class<?>, Class<?>> primitiveMap;
 
     public final Class<?> target;
     public final boolean isStatic;
@@ -23,10 +20,7 @@ public class Listener {
 
     @SuppressWarnings("unchecked")
     public Listener(Class<?> klass, Object object, Method method) {
-        Class<?> targetClass = method.getParameters()[0].getType();
-        if (targetClass.isPrimitive()) this.target = primitiveMap.get(targetClass);
-        else this.target = targetClass;
-
+        this.target = method.getParameters()[0].getType();
         this.isStatic = Modifier.isStatic(method.getModifiers());
         this.priority = method.getAnnotation(EventHandler.class).priority();
 
@@ -78,14 +72,5 @@ public class Listener {
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         }
-
-        primitiveMap = new HashMap<>();
-        primitiveMap.put(byte.class, Byte.class);
-        primitiveMap.put(boolean.class, Boolean.class);
-        primitiveMap.put(short.class, Short.class);
-        primitiveMap.put(int.class, Integer.class);
-        primitiveMap.put(long.class, Long.class);
-        primitiveMap.put(float.class, Float.class);
-        primitiveMap.put(double.class, Double.class);
     }
 }
