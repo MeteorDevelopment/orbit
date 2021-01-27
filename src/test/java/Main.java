@@ -15,6 +15,16 @@ public class Main {
         }
     }
 
+    static class Abc {
+        @EventHandler
+        private void onString(String str) {
+            // This listener will be called because Abc2 extends Abc
+            System.out.println("Super class string: " + str);
+        }
+    }
+
+    static class Abc2 extends Abc { }
+
     public static void main(String[] args) {
         System.out.println("-- WITHOUT INSTANCE --");
         IEventBus bus = new EventBus();
@@ -50,6 +60,10 @@ public class Main {
 
         // Nothing will happen because all listeners were unsubscribed
         bus.post("Pog");
+
+        // Abc2 has no listeners but it also subscribes listeners from superclasses
+        bus.subscribe(new Abc2());
+        bus.post("Superclass");
     }
 
     @EventHandler(priority = EventPriority.HIGH)
