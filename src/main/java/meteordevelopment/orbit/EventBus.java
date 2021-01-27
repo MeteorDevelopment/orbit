@@ -1,10 +1,10 @@
 package meteordevelopment.orbit;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Default implementation of {@link IEventBus}.
@@ -61,14 +61,14 @@ public class EventBus implements IEventBus {
 
     private void subscribe(IListener listener, boolean onlyStatic) {
         if (onlyStatic) {
-            if (listener.isStatic()) insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new ArrayList<>()), listener);
+            if (listener.isStatic()) insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
         }
         else {
-            insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new ArrayList<>()), listener);
+            insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
         }
     }
 
-    private synchronized void insert(List<IListener> listeners, IListener listener) {
+    private void insert(List<IListener> listeners, IListener listener) {
         int i = 0;
         for (; i < listeners.size(); i++) {
             if (listener.getPriority() > listeners.get(i).getPriority()) break;
@@ -92,7 +92,7 @@ public class EventBus implements IEventBus {
         unsubscribe(listener, false);
     }
 
-    private synchronized void unsubscribe(List<IListener> listeners, boolean staticOnly) {
+    private void unsubscribe(List<IListener> listeners, boolean staticOnly) {
         for (IListener listener : listeners) unsubscribe(listener, staticOnly);
     }
 
@@ -109,7 +109,7 @@ public class EventBus implements IEventBus {
 
     private List<IListener> getListeners(Class<?> klass, Object object) {
         return listenerCache.computeIfAbsent(klass, aClass -> {
-            List<IListener> listeners = new ArrayList<>();
+            List<IListener> listeners = new CopyOnWriteArrayList<>();
 
             getListeners(listeners, klass, object);
 
