@@ -8,12 +8,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 
 /**
  * Default implementation of {@link IEventBus}.
  */
 public class EventBus implements IEventBus {
     private final Map<Object, List<IListener>> listenerCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, List<IListener>> staticListenerCache = new ConcurrentHashMap<>();
+
     private final Map<Class<?>, List<IListener>> listenerMap = new ConcurrentHashMap<>();
 
     @Override
@@ -111,13 +114,16 @@ public class EventBus implements IEventBus {
     }
 
     private List<IListener> getListeners(Class<?> klass, Object object) {
-        return listenerCache.computeIfAbsent(object, o -> {
+        Function<Object, List<IListener>> func = o -> {
             List<IListener> listeners = new CopyOnWriteArrayList<>();
 
             getListeners(listeners, klass, object);
 
             return listeners;
-        });
+        };
+
+        if (object == null) return staticListenerCache.computeIfAbsent(klass, func);
+        return listenerCache.computeIfAbsent(object, func);
     }
 
     private void getListeners(List<IListener> listeners, Class<?> klass, Object object) {
