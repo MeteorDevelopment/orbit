@@ -7,39 +7,31 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manages event listeners.
+ * Default implementation of {@link IEventBus}.
  */
-public class EventBus {
-    private final Map<Class<?>, List<Listener>> listenerCache = new ConcurrentHashMap<>();
-    private final Map<Class<?>, List<Listener>> listenerMap = new ConcurrentHashMap<>();
+public class EventBus implements IEventBus {
+    private final Map<Class<?>, List<IListener>> listenerCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, List<IListener>> listenerMap = new ConcurrentHashMap<>();
 
-    /**
-     * Posts an event to all subscribed event listeners.
-     * @param event Event to post
-     * @return Event passed in
-     */
+    @Override
     public <T> T post(T event) {
-        List<Listener> listeners = listenerMap.get(event.getClass());
+        List<IListener> listeners = listenerMap.get(event.getClass());
 
         if (listeners != null) {
-            for (Listener listener : listeners) listener.call(event);
+            for (IListener listener : listeners) listener.call(event);
         }
 
         return event;
     }
 
-    /**
-     * Posts a cancellable event to all subscribed event listeners. Stops after the event was cancelled.
-     * @param event Event to post
-     * @return Event passed in
-     */
+    @Override
     public <T extends ICancellable> T post(T event) {
-        List<Listener> listeners = listenerMap.get(event.getClass());
+        List<IListener> listeners = listenerMap.get(event.getClass());
 
         if (listeners != null) {
             event.setCancelled(false);
 
-            for (Listener listener : listeners) {
+            for (IListener listener : listeners) {
                 listener.call(event);
                 if (event.isCancelled()) break;
             }
@@ -48,78 +40,80 @@ public class EventBus {
         return event;
     }
 
-    /**
-     * Finds all correct (static and non-static) methods with {@link EventHandler} annotation and subscribes them.
-     * @param object The object to scan for methods
-     */
+    @Override
     public void subscribe(Object object) {
         subscribe(getListeners(object.getClass(), object), false);
     }
 
-    /**
-     * Finds all correct (static only) methods with {@link EventHandler} annotation and subscribes them.
-     * @param klass The class to scan for methods
-     */
+    @Override
     public void subscribe(Class<?> klass) {
         subscribe(getListeners(klass, null), true);
     }
 
-    private void subscribe(List<Listener> listeners, boolean onlyStatic) {
-        for (Listener listener : listeners) {
-            if (onlyStatic) {
-                if (listener.isStatic) insert(listenerMap.computeIfAbsent(listener.target, aClass -> new ArrayList<>()), listener);
-            }
-            else {
-                insert(listenerMap.computeIfAbsent(listener.target, aClass -> new ArrayList<>()), listener);
-            }
+    @Override
+    public void subscribe(IListener listener) {
+        subscribe(listener, false);
+    }
+
+    private void subscribe(List<IListener> listeners, boolean onlyStatic) {
+        for (IListener listener : listeners) subscribe(listener, onlyStatic);
+    }
+
+    private void subscribe(IListener listener, boolean onlyStatic) {
+        if (onlyStatic) {
+            if (listener.isStatic()) insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new ArrayList<>()), listener);
+        }
+        else {
+            insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new ArrayList<>()), listener);
         }
     }
 
-    private synchronized void insert(List<Listener> listeners, Listener listener) {
+    private synchronized void insert(List<IListener> listeners, IListener listener) {
         int i = 0;
         for (; i < listeners.size(); i++) {
-            if (listener.priority > listeners.get(i).priority) break;
+            if (listener.getPriority() > listeners.get(i).getPriority()) break;
         }
 
         listeners.add(i, listener);
     }
 
-    /**
-     * Finds all correct (static and non-static) methods with {@link EventHandler} annotation and unsubscribes them.
-     * @param object The object to scan for methods
-     */
+    @Override
     public void unsubscribe(Object object) {
         unsubscribe(getListeners(object.getClass(), object), false);
     }
 
-    /**
-     * Finds all correct (static only) methods with {@link EventHandler} annotation and unsubscribes them.
-     * @param klass The class to scan for methods
-     */
+    @Override
     public void unsubscribe(Class<?> klass) {
         unsubscribe(getListeners(klass, null), true);
     }
 
-    private synchronized void unsubscribe(List<Listener> listeners, boolean staticOnly) {
-        for (Listener listener : listeners) {
-            List<Listener> l = listenerMap.get(listener.target);
+    @Override
+    public void unsubscribe(IListener listener) {
+        unsubscribe(listener, false);
+    }
 
-            if (l != null) {
-                if (staticOnly) {
-                    if (listener.isStatic) l.remove(listener);
-                }
-                else l.remove(listener);
+    private synchronized void unsubscribe(List<IListener> listeners, boolean staticOnly) {
+        for (IListener listener : listeners) unsubscribe(listener, staticOnly);
+    }
+
+    private void unsubscribe(IListener listener, boolean staticOnly) {
+        List<IListener> l = listenerMap.get(listener.getTarget());
+
+        if (l != null) {
+            if (staticOnly) {
+                if (listener.isStatic()) l.remove(listener);
             }
+            else l.remove(listener);
         }
     }
 
-    private List<Listener> getListeners(Class<?> klass, Object object) {
+    private List<IListener> getListeners(Class<?> klass, Object object) {
         return listenerCache.computeIfAbsent(klass, aClass -> {
-            List<Listener> listeners = new ArrayList<>();
+            List<IListener> listeners = new ArrayList<>();
 
             for (Method method : klass.getDeclaredMethods()) {
                 if (isValid(method)) {
-                    listeners.add(new Listener(klass, object, method));
+                    listeners.add(new LambdaListener(klass, object, method));
                 }
             }
 

@@ -9,17 +9,25 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.function.Consumer;
 
-public class Listener {
+/**
+ * Default implementation of a {@link IListener}.
+ */
+public class LambdaListener implements IListener {
     private static Constructor<MethodHandles.Lookup> lookupConstructor;
 
-    public final Class<?> target;
-    public final boolean isStatic;
-    public final int priority;
-
+    private final Class<?> target;
+    private final boolean isStatic;
+    private final int priority;
     private Consumer<Object> executor;
 
+    /**
+     * Creates a new lambda listener, can be used for both static and non-static methods.
+     * @param klass Class of the object
+     * @param object Object, null if static
+     * @param method Method to create lambda for
+     */
     @SuppressWarnings("unchecked")
-    public Listener(Class<?> klass, Object object, Method method) {
+    public LambdaListener(Class<?> klass, Object object, Method method) {
         this.target = method.getParameters()[0].getType();
         this.isStatic = Modifier.isStatic(method.getModifiers());
         this.priority = method.getAnnotation(EventHandler.class).priority();
@@ -62,8 +70,24 @@ public class Listener {
         }
     }
 
+    @Override
     public void call(Object event) {
         executor.accept(event);
+    }
+
+    @Override
+    public Class<?> getTarget() {
+        return target;
+    }
+
+    @Override
+    public int getPriority() {
+        return priority;
+    }
+
+    @Override
+    public boolean isStatic() {
+        return isStatic;
     }
 
     static {

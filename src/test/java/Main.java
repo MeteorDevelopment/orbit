@@ -1,7 +1,4 @@
-import meteordevelopment.orbit.EventBus;
-import meteordevelopment.orbit.EventHandler;
-import meteordevelopment.orbit.EventPriority;
-import meteordevelopment.orbit.ICancellable;
+import meteordevelopment.orbit.*;
 
 public class Main {
     static class Foo implements ICancellable {
@@ -20,7 +17,7 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println("-- WITHOUT INSTANCE --");
-        EventBus bus = new EventBus();
+        IEventBus bus = new EventBus();
 
         // Subscribes only static methods
         bus.subscribe(Main.class);
@@ -38,7 +35,7 @@ public class Main {
     }
 
     public Main() {
-        EventBus bus = new EventBus();
+        IEventBus bus = new EventBus();
 
         // Subscribes both static and normal methods
         bus.subscribe(this);
