@@ -7,6 +7,7 @@ public interface IEventBus {
     /**
      * Posts an event to all subscribed event listeners.
      * @param event Event to post
+     * @param <T> Type of the event
      * @return Event passed in
      */
     <T> T post(T event);
@@ -14,6 +15,7 @@ public interface IEventBus {
     /**
      * Posts a cancellable event to all subscribed event listeners. Stops after the event was cancelled.
      * @param event Event to post
+     * @param <T> Type of the event
      * @return Event passed in
      */
     <T extends ICancellable> T post(T event);
