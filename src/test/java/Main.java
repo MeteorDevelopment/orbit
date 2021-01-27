@@ -1,4 +1,5 @@
 import meteordevelopment.orbit.*;
+import meteordevelopment.orbit.listeners.ConsumerListener;
 
 public class Main {
     static class Foo implements ICancellable {
@@ -31,6 +32,11 @@ public class Main {
 
         // Subscribes only static methods
         bus.subscribe(Main.class);
+
+        // Subscribes listener which takes a Consumer interface
+        bus.subscribe(new ConsumerListener<Foo>(Foo.class, EventPriority.HIGHEST, foo -> {
+            System.out.println("Consumer listener");
+        }));
 
         // Posts 2 events, int event wont do anything because the listener for it is not static and thus hasn't been subscribed
         bus.post(new Foo());

@@ -1,4 +1,4 @@
-package meteordevelopment.orbit;
+package meteordevelopment.orbit.listeners;
 
 /**
  * Base type for all listeners.

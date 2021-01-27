@@ -1,5 +1,7 @@
 package meteordevelopment.orbit;
 
+import meteordevelopment.orbit.listeners.IListener;
+
 /**
  * Manages event listeners.
  */

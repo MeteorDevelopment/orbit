@@ -1,4 +1,6 @@
-package meteordevelopment.orbit;
+package meteordevelopment.orbit.listeners;
+
+import meteordevelopment.orbit.EventHandler;
 
 import java.lang.invoke.LambdaMetafactory;
 import java.lang.invoke.MethodHandle;
@@ -10,7 +12,7 @@ import java.lang.reflect.Modifier;
 import java.util.function.Consumer;
 
 /**
- * Default implementation of a {@link IListener}.
+ * Default implementation of a {@link IListener} that creates a lambda at runtime to call the target method.
  */
 public class LambdaListener implements IListener {
     private static Constructor<MethodHandles.Lookup> lookupConstructor;
