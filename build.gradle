@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'meteordevelopment'
-version '0.1.5'
+version '0.1.6'
 
 sourceCompatibility = targetCompatibility = 1.8
 
