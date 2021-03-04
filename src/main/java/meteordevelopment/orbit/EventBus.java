@@ -123,7 +123,15 @@ public class EventBus implements IEventBus {
         };
 
         if (object == null) return staticListenerCache.computeIfAbsent(klass, func);
-        return listenerCache.computeIfAbsent(object, func);
+
+        // We need to check if the instances are the same and avoid using .equals() and .hashCode()
+        for (Object key : listenerCache.keySet()) {
+            if (key == object) return listenerCache.get(object);
+        }
+
+        List<IListener> listeners = func.apply(object);
+        listenerCache.put(object, listeners);
+        return listeners;
     }
 
     private void getListeners(List<IListener> listeners, Class<?> klass, Object object) {
