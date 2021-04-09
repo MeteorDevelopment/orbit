@@ -15,7 +15,9 @@ import java.util.function.Consumer;
  * Default implementation of a {@link IListener} that creates a lambda at runtime to call the target method.
  */
 public class LambdaListener implements IListener {
+    private static boolean isJava1dot8;
     private static Constructor<MethodHandles.Lookup> lookupConstructor;
+    private static Method privateLookupInMethod;
 
     private final Class<?> target;
     private final boolean isStatic;
@@ -36,11 +38,17 @@ public class LambdaListener implements IListener {
 
         try {
             String name = method.getName();
+            MethodHandles.Lookup lookup;
 
-            boolean a = lookupConstructor.isAccessible();
-            lookupConstructor.setAccessible(true);
-            MethodHandles.Lookup lookup = lookupConstructor.newInstance(klass);
-            lookupConstructor.setAccessible(a);
+            if (isJava1dot8) {
+                boolean a = lookupConstructor.isAccessible();
+                lookupConstructor.setAccessible(true);
+                lookup = lookupConstructor.newInstance(klass);
+                lookupConstructor.setAccessible(a);
+            }
+            else {
+                lookup = (MethodHandles.Lookup) privateLookupInMethod.invoke(null, klass, MethodHandles.lookup());
+            }
 
             MethodType methodType = MethodType.methodType(void.class, method.getParameters()[0].getType());
 
@@ -94,7 +102,14 @@ public class LambdaListener implements IListener {
 
     static {
         try {
-            lookupConstructor = MethodHandles.Lookup.class.getDeclaredConstructor(Class.class);
+            isJava1dot8 = System.getProperty("java.version").startsWith("1.8");
+
+            if (isJava1dot8) {
+                lookupConstructor = MethodHandles.Lookup.class.getDeclaredConstructor(Class.class);
+            }
+            else {
+                privateLookupInMethod = MethodHandles.class.getDeclaredMethod("privateLookupIn", Class.class, MethodHandles.Lookup.class);
+            }
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         }
