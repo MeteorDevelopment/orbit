@@ -2,11 +2,12 @@ package meteordevelopment.orbit.listeners;
 
 import meteordevelopment.orbit.EventHandler;
 
-import java.lang.invoke.LambdaConversionException;
+import java.lang.invoke.LambdaMetafactory;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.function.Consumer;
@@ -16,7 +17,7 @@ import java.util.function.Consumer;
  */
 public class LambdaListener implements IListener {
     public interface Factory {
-        MethodHandle create(MethodHandles.Lookup caller, String invokedName, MethodType invokedType, MethodType samMethodType, MethodHandle implMethod, MethodType instantiatedMethodType) throws LambdaConversionException;
+        MethodHandles.Lookup create(Method lookupInMethod, Class<?> klass) throws InvocationTargetException, IllegalAccessException;
     }
 
     private static boolean isJava1dot8;
@@ -51,7 +52,7 @@ public class LambdaListener implements IListener {
                 lookupConstructor.setAccessible(a);
             }
             else {
-                lookup = (MethodHandles.Lookup) privateLookupInMethod.invoke(null, klass, MethodHandles.lookup());
+                lookup = factory.create(privateLookupInMethod, klass);
             }
 
             MethodType methodType = MethodType.methodType(void.class, method.getParameters()[0].getType());
@@ -68,7 +69,7 @@ public class LambdaListener implements IListener {
                 invokedType = MethodType.methodType(Consumer.class, klass);
             }
 
-            MethodHandle lambdaFactory = factory.create(lookup, "accept", invokedType, MethodType.methodType(void.class, Object.class), methodHandle, methodType);
+            MethodHandle lambdaFactory = LambdaMetafactory.metafactory(lookup, "accept", invokedType, MethodType.methodType(void.class, Object.class), methodHandle, methodType).getTarget();
 
             if (isStatic) this.executor = (Consumer<Object>) lambdaFactory.invoke();
             else this.executor = (Consumer<Object>) lambdaFactory.invoke(object);

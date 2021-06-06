@@ -3,7 +3,7 @@ package test;
 import meteordevelopment.orbit.*;
 import meteordevelopment.orbit.listeners.ConsumerListener;
 
-import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.MethodHandles;
 
 public class Main {
     static class Foo implements ICancellable {
@@ -33,7 +33,7 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("-- WITHOUT INSTANCE --");
         IEventBus bus = new EventBus();
-        bus.registerLambdaFactory("test", (caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType) -> LambdaMetafactory.metafactory(caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType).getTarget());
+        bus.registerLambdaFactory("test", (lookupInMethod, klass) -> (MethodHandles.Lookup) lookupInMethod.invoke(null, klass, MethodHandles.lookup()));
 
         // Subscribes only static methods
         bus.subscribe(Main.class);
@@ -57,7 +57,7 @@ public class Main {
 
     public Main() {
         IEventBus bus = new EventBus();
-        bus.registerLambdaFactory("test", (caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType) -> LambdaMetafactory.metafactory(caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType).getTarget());
+        bus.registerLambdaFactory("test", (lookupInMethod, klass) -> (MethodHandles.Lookup) lookupInMethod.invoke(null, klass, MethodHandles.lookup()));
 
         // Subscribes both static and normal methods
         bus.subscribe(this);
