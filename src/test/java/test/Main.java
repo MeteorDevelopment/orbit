@@ -33,7 +33,7 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("-- WITHOUT INSTANCE --");
         IEventBus bus = new EventBus();
-        bus.registerLambdaFactory("test", LambdaMetafactory::metafactory);
+        bus.registerLambdaFactory("test", (caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType) -> LambdaMetafactory.metafactory(caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType).getTarget());
 
         // Subscribes only static methods
         bus.subscribe(Main.class);
@@ -57,7 +57,7 @@ public class Main {
 
     public Main() {
         IEventBus bus = new EventBus();
-        bus.registerLambdaFactory("test", LambdaMetafactory::metafactory);
+        bus.registerLambdaFactory("test", (caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType) -> LambdaMetafactory.metafactory(caller, invokedName, invokedType, samMethodType, implMethod, instantiatedMethodType).getTarget());
 
         // Subscribes both static and normal methods
         bus.subscribe(this);
