@@ -2,10 +2,7 @@ package meteordevelopment.orbit.listeners;
 
 import meteordevelopment.orbit.EventHandler;
 
-import java.lang.invoke.LambdaMetafactory;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
+import java.lang.invoke.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -15,6 +12,10 @@ import java.util.function.Consumer;
  * Default implementation of a {@link IListener} that creates a lambda at runtime to call the target method.
  */
 public class LambdaListener implements IListener {
+    public interface Factory {
+        CallSite create(MethodHandles.Lookup caller, String invokedName, MethodType invokedType, MethodType samMethodType, MethodHandle implMethod, MethodType instantiatedMethodType) throws LambdaConversionException;
+    }
+
     private static boolean isJava1dot8;
     private static Constructor<MethodHandles.Lookup> lookupConstructor;
     private static Method privateLookupInMethod;
@@ -31,7 +32,7 @@ public class LambdaListener implements IListener {
      * @param method Method to create lambda for
      */
     @SuppressWarnings("unchecked")
-    public LambdaListener(Class<?> klass, Object object, Method method) {
+    public LambdaListener(Factory factory, Class<?> klass, Object object, Method method) {
         this.target = method.getParameters()[0].getType();
         this.isStatic = Modifier.isStatic(method.getModifiers());
         this.priority = method.getAnnotation(EventHandler.class).priority();
@@ -64,14 +65,7 @@ public class LambdaListener implements IListener {
                 invokedType = MethodType.methodType(Consumer.class, klass);
             }
 
-            MethodHandle lambdaFactory = LambdaMetafactory.metafactory(
-                    lookup,
-                    "accept",
-                    invokedType,
-                    MethodType.methodType(void.class, Object.class),
-                    methodHandle,
-                    methodType
-            ).getTarget();
+            MethodHandle lambdaFactory = factory.create(lookup, "accept", invokedType, MethodType.methodType(void.class, Object.class), methodHandle, methodType).getTarget();
 
             if (isStatic) this.executor = (Consumer<Object>) lambdaFactory.invoke();
             else this.executor = (Consumer<Object>) lambdaFactory.invoke(object);

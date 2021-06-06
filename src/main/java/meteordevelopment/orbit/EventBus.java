@@ -4,6 +4,7 @@ import meteordevelopment.orbit.listeners.IListener;
 import meteordevelopment.orbit.listeners.LambdaListener;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,10 +15,29 @@ import java.util.function.Function;
  * Default implementation of {@link IEventBus}.
  */
 public class EventBus implements IEventBus {
+    private static class LambdaFactoryInfo {
+        public final String packagePrefix;
+        public final LambdaListener.Factory factory;
+
+        public LambdaFactoryInfo(String packagePrefix, LambdaListener.Factory factory) {
+            this.packagePrefix = packagePrefix;
+            this.factory = factory;
+        }
+    }
+
     private final Map<Object, List<IListener>> listenerCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, List<IListener>> staticListenerCache = new ConcurrentHashMap<>();
 
     private final Map<Class<?>, List<IListener>> listenerMap = new ConcurrentHashMap<>();
+
+    private final List<LambdaFactoryInfo> lambdaFactoryInfos = new ArrayList<>();
+
+    @Override
+    public void registerLambdaFactory(String packagePrefix, LambdaListener.Factory factory) {
+        synchronized (lambdaFactoryInfos) {
+            lambdaFactoryInfos.add(new LambdaFactoryInfo(packagePrefix, factory));
+        }
+    }
 
     @Override
     public <T> T post(T event) {
@@ -137,7 +157,7 @@ public class EventBus implements IEventBus {
     private void getListeners(List<IListener> listeners, Class<?> klass, Object object) {
         for (Method method : klass.getDeclaredMethods()) {
             if (isValid(method)) {
-                listeners.add(new LambdaListener(klass, object, method));
+                listeners.add(new LambdaListener(getLambdaFactory(klass), klass, object, method));
             }
         }
 
@@ -150,5 +170,15 @@ public class EventBus implements IEventBus {
         if (method.getParameterCount() != 1) return false;
 
         return !method.getParameters()[0].getType().isPrimitive();
+    }
+
+    private LambdaListener.Factory getLambdaFactory(Class<?> klass) {
+        synchronized (lambdaFactoryInfos) {
+            for (LambdaFactoryInfo info : lambdaFactoryInfos) {
+                if (klass.getName().startsWith(info.packagePrefix)) return info.factory;
+            }
+        }
+
+        throw new NoLambdaFactoryException(klass);
     }
 }

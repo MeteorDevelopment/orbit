@@ -1,11 +1,19 @@
 package meteordevelopment.orbit;
 
 import meteordevelopment.orbit.listeners.IListener;
+import meteordevelopment.orbit.listeners.LambdaListener;
 
 /**
  * Manages event listeners.
  */
 public interface IEventBus {
+    /**
+     * Registers a lambda factory to use with the specified package.
+     * @param packagePrefix Package prefix that this factory will be used for, eg "meteordevelopment.orbit"
+     * @param factory The factory to use
+     */
+    void registerLambdaFactory(String packagePrefix, LambdaListener.Factory factory);
+
     /**
      * Posts an event to all subscribed event listeners.
      * @param event Event to post

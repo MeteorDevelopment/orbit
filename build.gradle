@@ -5,7 +5,7 @@ plugins {
 group 'meteordevelopment'
 version '0.2.0'
 
-sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_9
+sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
 
 task sourcesJar(type: Jar, dependsOn: classes) {
     classifier = 'sources'
