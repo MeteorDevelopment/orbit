@@ -1,8 +1,19 @@
-![JitPack](https://img.shields.io/jitpack/v/github/MeteorDevelopment/orbit)
-
 # Orbit  
 Extremely fast event system.
 
+## Gradle
+```groovy
+repositories {
+    maven {
+        name = "meteor-maven"
+        url = "https://maven.meteordev.org"
+    }
+}
+
+dependencies {
+    implementation "meteordevelopment:orbit:0.2.3"
+}
+```
+
 ## Examples
 For examples check out `src/test/java/test/Main.java`.  
-Javadocs can be found [here](https://javadoc.jitpack.io/com/github/MeteorDevelopment/orbit/0.1.2/javadoc/).
