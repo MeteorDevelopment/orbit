@@ -106,11 +106,13 @@ public class EventBus implements IEventBus {
     @Override
     public void unsubscribe(Object object) {
         unsubscribe(getListeners(object.getClass(), object), false);
+        listenerCache.remove(object);
     }
 
     @Override
     public void unsubscribe(Class<?> klass) {
         unsubscribe(getListeners(klass, null), true);
+        staticListenerCache.remove(klass);
     }
 
     @Override

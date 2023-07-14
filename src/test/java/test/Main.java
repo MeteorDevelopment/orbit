@@ -39,9 +39,7 @@ public class Main {
         bus.subscribe(Main.class);
 
         // Subscribes listener which takes a Consumer interface
-        bus.subscribe(new ConsumerListener<Foo>(Foo.class, EventPriority.HIGHEST, foo -> {
-            System.out.println("Consumer listener");
-        }));
+        bus.subscribe(new ConsumerListener<Foo>(Foo.class, EventPriority.HIGHEST, foo -> System.out.println("Consumer listener")));
 
         // Posts 2 events, int event wont do anything because the listener for it is not static and thus hasn't been subscribed
         bus.post(new Foo());
@@ -49,10 +47,17 @@ public class Main {
 
         // Unsubscribes only static methods
         bus.unsubscribe(Main.class);
+        System.out.println("staticListenerCache should be now.");
 
         System.out.println();
         System.out.println("-- WITH INSTANCE --");
-        new Main();
+
+        for (int i = 0; i < 5; i++) {
+            new Main();
+            System.out.println("Loop test #" + i);
+        }
+
+        System.out.println("listenerCache should be empty.");
     }
 
     public Main() {

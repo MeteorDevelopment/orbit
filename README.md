@@ -11,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    implementation "meteordevelopment:orbit:0.2.3"
+    implementation "meteordevelopment:orbit:0.2.4"
 }
 ```
 
