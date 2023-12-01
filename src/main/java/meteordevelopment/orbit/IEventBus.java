@@ -18,6 +18,7 @@ public interface IEventBus {
      * Returns whether at least one event listener is currently registered for this event type.
      * @param eventClass The event type to check for registered listeners.
      * @return whether the event is being listened for
+     * @since 0.2.4
      */
     boolean isListening(Class<?> eventClass);
 
