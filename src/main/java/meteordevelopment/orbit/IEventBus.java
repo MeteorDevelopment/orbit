@@ -15,6 +15,13 @@ public interface IEventBus {
     void registerLambdaFactory(String packagePrefix, LambdaListener.Factory factory);
 
     /**
+     * Returns whether at least one event listener is currently registered for this event type.
+     * @param eventClass The event type to check for registered listeners.
+     * @return whether the event is being listened for
+     */
+    boolean isListening(Class<?> eventClass);
+
+    /**
      * Posts an event to all subscribed event listeners.
      * @param event Event to post
      * @param <T> Type of the event
