@@ -29,7 +29,7 @@ public class ConsumerListener<T> implements IListener {
     }
 
     @Override
-    public Class<?> getTarget() {
+    public Class<T> getTarget() {
         return target;
     }
 
