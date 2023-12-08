@@ -22,6 +22,8 @@ public interface IListener {
 
     /**
      * @return True if this listener is for static methods
+     * @deprecated Will be removed in a future version
      */
+    @Deprecated
     boolean isStatic();
 }
