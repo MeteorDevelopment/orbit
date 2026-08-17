@@ -17,7 +17,7 @@ public class LambdaListener implements IListener {
     private final Class<?> target;
     private final boolean isStatic;
     private final int priority;
-    private Consumer<Object> executor;
+    private final Consumer<Object> executor;
 
     /**
      * Creates a new lambda listener, can be used for both static and non-static methods.
@@ -54,7 +54,7 @@ public class LambdaListener implements IListener {
             if (isStatic) this.executor = (Consumer<Object>) lambdaFactory.invoke();
             else this.executor = (Consumer<Object>) lambdaFactory.invoke(object);
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            throw new IllegalStateException("Error creating lambda listener", throwable);
         }
     }
 
