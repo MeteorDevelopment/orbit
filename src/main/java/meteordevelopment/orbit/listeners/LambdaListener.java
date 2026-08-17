@@ -73,7 +73,6 @@ public class LambdaListener implements IListener {
         return priority;
     }
 
-    @Override
     public boolean isStatic() {
         return isStatic;
     }
