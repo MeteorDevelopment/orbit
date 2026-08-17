@@ -3,6 +3,7 @@ package meteordevelopment.orbit;
 import meteordevelopment.orbit.listeners.IListener;
 import meteordevelopment.orbit.listeners.LambdaListener;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,27 +16,17 @@ import java.util.function.Function;
  * Default implementation of {@link IEventBus}.
  */
 public class EventBus implements IEventBus {
-    private static class LambdaFactoryInfo {
-        public final String packagePrefix;
-        public final LambdaListener.Factory factory;
-
-        public LambdaFactoryInfo(String packagePrefix, LambdaListener.Factory factory) {
-            this.packagePrefix = packagePrefix;
-            this.factory = factory;
-        }
-    }
-
     private final Map<Object, List<IListener>> listenerCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, List<IListener>> staticListenerCache = new ConcurrentHashMap<>();
 
     private final Map<Class<?>, List<IListener>> listenerMap = new ConcurrentHashMap<>();
 
-    private final List<LambdaFactoryInfo> lambdaFactoryInfos = new ArrayList<>();
+    private final List<LookupInfo> lookupInfos = new ArrayList<>();
 
     @Override
-    public void registerLambdaFactory(String packagePrefix, LambdaListener.Factory factory) {
-        synchronized (lambdaFactoryInfos) {
-            lambdaFactoryInfos.add(new LambdaFactoryInfo(packagePrefix, factory));
+    public void registerLookup(String packagePrefix, MethodHandles.Lookup lookup) {
+        synchronized (lookupInfos) {
+            lookupInfos.add(new LookupInfo(packagePrefix, lookup));
         }
     }
 
@@ -178,10 +169,10 @@ public class EventBus implements IEventBus {
         return !method.getParameters()[0].getType().isPrimitive();
     }
 
-    private LambdaListener.Factory getLambdaFactory(Class<?> klass) {
-        synchronized (lambdaFactoryInfos) {
-            for (LambdaFactoryInfo info : lambdaFactoryInfos) {
-                if (klass.getName().startsWith(info.packagePrefix)) return info.factory;
+    private MethodHandles.Lookup getLambdaFactory(Class<?> klass) {
+        synchronized (lookupInfos) {
+            for (LookupInfo info : lookupInfos) {
+                if (klass.getName().startsWith(info.packagePrefix)) return info.lookup;
             }
         }
 
