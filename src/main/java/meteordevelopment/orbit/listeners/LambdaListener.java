@@ -2,18 +2,19 @@ package meteordevelopment.orbit.listeners;
 
 import meteordevelopment.orbit.EventHandler;
 
-import java.lang.invoke.LambdaMetafactory;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
+import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
  * Default implementation of a {@link IListener} that creates a lambda at runtime to call the target method.
  */
 public class LambdaListener implements IListener {
+    private static final Map<Method, MethodHandle> LAMBDA_FACTORY_CACHE = new ConcurrentHashMap<>();
+
     private final Class<?> target;
     private final boolean isStatic;
     private final int priority;
@@ -32,24 +33,21 @@ public class LambdaListener implements IListener {
         this.priority = method.getAnnotation(EventHandler.class).priority();
 
         try {
-            String name = method.getName();
-            MethodType methodType = MethodType.methodType(void.class, method.getParameters()[0].getType());
+            MethodHandle lambdaFactory = LAMBDA_FACTORY_CACHE.computeIfAbsent(method, innerMethod -> {
+                try {
+                    MethodHandles.Lookup innerLookup = lookup.in(klass);
 
-            MethodHandle methodHandle;
-            MethodType invokedType;
-
-            MethodHandles.Lookup innerLookup = lookup.in(klass);
-
-            if (isStatic) {
-                methodHandle = innerLookup.findStatic(klass, name, methodType);
-                invokedType = MethodType.methodType(Consumer.class);
-            }
-            else {
-                methodHandle = innerLookup.findVirtual(klass, name, methodType);
-                invokedType = MethodType.methodType(Consumer.class, klass);
-            }
-
-            MethodHandle lambdaFactory = LambdaMetafactory.metafactory(innerLookup, "accept", invokedType, MethodType.methodType(void.class, Object.class), methodHandle, methodType).getTarget();
+                    return LambdaMetafactory.metafactory(
+                        innerLookup, "accept",
+                        isStatic ? MethodType.methodType(Consumer.class) : MethodType.methodType(Consumer.class, klass),
+                        MethodType.methodType(void.class, Object.class),
+                        innerLookup.unreflect(innerMethod),
+                        MethodType.methodType(void.class, innerMethod.getParameters()[0].getType())
+                    ).getTarget();
+                } catch (IllegalAccessException | LambdaConversionException e) {
+                    throw new RuntimeException(e);
+                }
+            });
 
             if (isStatic) this.executor = (Consumer<Object>) lambdaFactory.invoke();
             else this.executor = (Consumer<Object>) lambdaFactory.invoke(object);
