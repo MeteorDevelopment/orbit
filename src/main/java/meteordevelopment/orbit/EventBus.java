@@ -5,6 +5,7 @@ import meteordevelopment.orbit.listeners.LambdaListener;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -63,31 +64,21 @@ public class EventBus implements IEventBus {
 
     @Override
     public void subscribe(Object object) {
-        subscribe(getListeners(object.getClass(), object), false);
+        subscribe(getListeners(object.getClass(), object, false));
     }
 
     @Override
     public void subscribe(Class<?> klass) {
-        subscribe(getListeners(klass, null), true);
+        subscribe(getListeners(klass, null, true));
+    }
+
+    private void subscribe(List<IListener> listeners) {
+        for (IListener listener : listeners) subscribe(listener);
     }
 
     @Override
     public void subscribe(IListener listener) {
-        subscribe(listener, false);
-    }
-
-    private void subscribe(List<IListener> listeners, boolean onlyStatic) {
-        for (IListener listener : listeners) subscribe(listener, onlyStatic);
-    }
-
-    private void subscribe(IListener listener, boolean onlyStatic) {
-        if (onlyStatic) {
-            if (listener instanceof LambdaListener && ((LambdaListener) listener).isStatic())
-                insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
-        }
-        else {
-            insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
-        }
+        insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
     }
 
     private void insert(List<IListener> listeners, IListener listener) {
@@ -123,11 +114,11 @@ public class EventBus implements IEventBus {
         if (l != null) l.remove(listener);
     }
 
-    private List<IListener> getListeners(Class<?> klass, Object object) {
+    private List<IListener> getListeners(Class<?> klass, Object object, boolean onlyStatic) {
         Function<Object, List<IListener>> func = o -> {
             List<IListener> listeners = new CopyOnWriteArrayList<>();
 
-            getListeners(listeners, klass, object);
+            getListeners(listeners, klass, object, onlyStatic);
 
             return listeners;
         };
@@ -136,14 +127,14 @@ public class EventBus implements IEventBus {
         else return listenerCache.computeIfAbsent(object, func);
     }
 
-    private void getListeners(List<IListener> listeners, Class<?> klass, Object object) {
+    private void getListeners(List<IListener> listeners, Class<?> klass, Object object, boolean onlyStatic) {
         for (Method method : klass.getDeclaredMethods()) {
-            if (isValid(method)) {
+            if (isValid(method) && (!onlyStatic || Modifier.isStatic(method.getModifiers()))) {
                 listeners.add(new LambdaListener(getLambdaFactory(klass), klass, object, method));
             }
         }
 
-        if (klass.getSuperclass() != null) getListeners(listeners, klass.getSuperclass(), object);
+        if (klass.getSuperclass() != null) getListeners(listeners, klass.getSuperclass(), object, onlyStatic);
     }
 
     private boolean isValid(Method method) {
