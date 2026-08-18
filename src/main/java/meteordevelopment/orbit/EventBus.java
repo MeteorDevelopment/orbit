@@ -40,6 +40,22 @@ public class EventBus implements IEventBus {
     }
 
     @Override
+    public boolean isSubscribed(Object object) {
+        return listenerCache.containsKey(object);
+    }
+
+    @Override
+    public boolean isSubscribed(Class<?> klass) {
+        return staticListenerCache.containsKey(klass);
+    }
+
+    @Override
+    public boolean isSubscribed(IListener listener) {
+        List<IListener> listeners = listenerMap.get(listener.getTarget());
+        return listeners != null && listeners.contains(listener);
+    }
+
+    @Override
     public <T> T post(T event) {
         List<IListener> listeners = listenerMap.get(event.getClass());
 

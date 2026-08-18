@@ -25,6 +25,27 @@ public interface IEventBus {
     boolean isListening(Class<?> eventClass);
 
     /**
+     * Returns whether the object is currently subscribed to the event bus.
+     * @param object The object to query
+     * @return whether the object is currently subscribed to the event bus
+     */
+    boolean isSubscribed(Object object);
+
+    /**
+     * Returns whether the class is currently subscribed to the event bus.
+     * @param klass The class to query
+     * @return whether the class is currently subscribed to the event bus
+     */
+    boolean isSubscribed(Class<?> klass);
+
+    /**
+     * Returns whether the listener is currently subscribed to the event bus.
+     * @param listener The listener to query
+     * @return whether the listener is currently subscribed to the event bus
+     */
+    boolean isSubscribed(IListener listener);
+
+    /**
      * Posts an event to all subscribed event listeners.
      * @param event Event to post
      * @param <T> Type of the event
