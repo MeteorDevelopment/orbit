@@ -26,7 +26,7 @@ public class EventBus implements IEventBus {
         synchronized (lookupInfos) {
             // to ensure the lookups are used correctly, they are ordered from longest to shortest
             int i = 0;
-            while (lookupInfos.get(i).packagePrefix.length() > packagePrefix.length()) {
+            while (i < lookupInfos.size() && lookupInfos.get(i).packagePrefix.length() > packagePrefix.length()) {
                 i++;
             }
             lookupInfos.add(i, new LookupInfo(packagePrefix, lookup));
