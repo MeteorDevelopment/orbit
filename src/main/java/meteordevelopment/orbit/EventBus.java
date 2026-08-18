@@ -63,12 +63,12 @@ public class EventBus implements IEventBus {
 
     @Override
     public void subscribe(Object object) {
-        subscribe(listenerCache.computeIfAbsent(object, o -> getListeners(o.getClass(), o, false)));
+        subscribe(listenerCache.computeIfAbsent(object, o -> getListeners(o.getClass(), o)));
     }
 
     @Override
     public void subscribe(Class<?> klass) {
-        subscribe(staticListenerCache.computeIfAbsent(klass, k -> getListeners(k, null, true)));
+        subscribe(staticListenerCache.computeIfAbsent(klass, k -> getListeners(k, null)));
     }
 
     private void subscribe(List<IListener> listeners) {
@@ -113,10 +113,10 @@ public class EventBus implements IEventBus {
         if (l != null) l.remove(listener);
     }
 
-    private List<IListener> getListeners(Class<?> klass, Object object, boolean onlyStatic) {
-        List<IListener> listeners = new CopyOnWriteArrayList<>();
-        getListeners(listeners, klass, object, onlyStatic);
-        return listeners;
+    private List<IListener> getListeners(Class<?> klass, Object object) {
+        List<IListener> listeners = new ArrayList<>();
+        getListeners(listeners, klass, object, object == null);
+        return new CopyOnWriteArrayList<>(listeners);
     }
 
     private void getListeners(List<IListener> listeners, Class<?> klass, Object object, boolean onlyStatic) {
