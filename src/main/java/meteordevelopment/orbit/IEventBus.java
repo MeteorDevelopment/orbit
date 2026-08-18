@@ -28,6 +28,7 @@ public interface IEventBus {
      * Returns whether the object is currently subscribed to the event bus.
      * @param object The object to query
      * @return whether the object is currently subscribed to the event bus
+     * @since 0.3.0
      */
     boolean isSubscribed(Object object);
 
@@ -35,6 +36,7 @@ public interface IEventBus {
      * Returns whether the class is currently subscribed to the event bus.
      * @param klass The class to query
      * @return whether the class is currently subscribed to the event bus
+     * @since 0.3.0
      */
     boolean isSubscribed(Class<?> klass);
 
@@ -42,6 +44,7 @@ public interface IEventBus {
      * Returns whether the listener is currently subscribed to the event bus.
      * @param listener The listener to query
      * @return whether the listener is currently subscribed to the event bus
+     * @since 0.3.0
      */
     boolean isSubscribed(IListener listener);
 

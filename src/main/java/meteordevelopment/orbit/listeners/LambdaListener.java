@@ -48,6 +48,9 @@ public class LambdaListener implements IListener {
         return priority;
     }
 
+    /**
+     * @return Whether the method associated with this listener is static
+     */
     public boolean isStatic() {
         return isStatic;
     }
