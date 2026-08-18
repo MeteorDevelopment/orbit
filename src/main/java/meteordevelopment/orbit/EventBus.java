@@ -115,18 +115,18 @@ public class EventBus implements IEventBus {
 
     private List<IListener> getListeners(Class<?> klass, Object object) {
         List<IListener> listeners = new ArrayList<>();
-        getListeners(listeners, klass, object, object == null);
-        return new CopyOnWriteArrayList<>(listeners);
-    }
 
-    private void getListeners(List<IListener> listeners, Class<?> klass, Object object, boolean onlyStatic) {
-        for (Method method : klass.getDeclaredMethods()) {
-            if (isValid(method) && (!onlyStatic || Modifier.isStatic(method.getModifiers()))) {
-                listeners.add(new LambdaListener(getLambdaFactory(klass), klass, object, method));
+        while (klass != Object.class) {
+            for (Method method : klass.getDeclaredMethods()) {
+                if (isValid(method) && (object != null || Modifier.isStatic(method.getModifiers()))) {
+                    listeners.add(new LambdaListener(getLambdaFactory(klass), klass, object, method));
+                }
             }
+
+            klass = klass.getSuperclass();
         }
 
-        if (klass.getSuperclass() != null) getListeners(listeners, klass.getSuperclass(), object, onlyStatic);
+        return new CopyOnWriteArrayList<>(listeners);
     }
 
     private boolean isValid(Method method) {
