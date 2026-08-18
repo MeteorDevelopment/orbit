@@ -101,32 +101,26 @@ public class EventBus implements IEventBus {
 
     @Override
     public void unsubscribe(Object object) {
-        unsubscribe(getListeners(object.getClass(), object), false);
+        List<IListener> listeners = listenerCache.remove(object);
+        if (listeners != null) unsubscribe(listeners);
+        // for backwards-compatibility
+        else unsubscribe(object.getClass());
     }
 
     @Override
     public void unsubscribe(Class<?> klass) {
-        unsubscribe(getListeners(klass, null), true);
+        List<IListener> staticListeners = staticListenerCache.remove(klass);
+        if (staticListeners != null) unsubscribe(staticListeners);
+    }
+
+    private void unsubscribe(List<IListener> listeners) {
+        for (IListener listener : listeners) unsubscribe(listener);
     }
 
     @Override
     public void unsubscribe(IListener listener) {
-        unsubscribe(listener, false);
-    }
-
-    private void unsubscribe(List<IListener> listeners, boolean staticOnly) {
-        for (IListener listener : listeners) unsubscribe(listener, staticOnly);
-    }
-
-    private void unsubscribe(IListener listener, boolean staticOnly) {
         List<IListener> l = listenerMap.get(listener.getTarget());
-
-        if (l != null) {
-            if (staticOnly) {
-                if (listener instanceof LambdaListener && ((LambdaListener) listener).isStatic()) l.remove(listener);
-            }
-            else l.remove(listener);
-        }
+        if (l != null) l.remove(listener);
     }
 
     private List<IListener> getListeners(Class<?> klass, Object object) {
