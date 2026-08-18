@@ -3,17 +3,24 @@ package meteordevelopment.orbit;
 import meteordevelopment.orbit.listeners.IListener;
 import meteordevelopment.orbit.listeners.LambdaListener;
 
+import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * Default implementation of {@link IEventBus}.
  */
 public class EventBus implements IEventBus {
+    private static final Map<Method, WeakReference<MethodHandle>> LAMBDA_FACTORY_CACHE = Collections.synchronizedMap(new WeakHashMap<>());
+
     private final Map<Object, List<IListener>> listenerCache = Collections.synchronizedMap(new IdentityHashMap<>());
     private final Map<Class<?>, List<IListener>> staticListenerCache = new ConcurrentHashMap<>();
 
@@ -84,12 +91,12 @@ public class EventBus implements IEventBus {
 
     @Override
     public void subscribe(Object object) {
-        subscribe(listenerCache.computeIfAbsent(object, o -> getListeners(o.getClass(), o)));
+        subscribe(listenerCache.computeIfAbsent(object, o -> createListeners(o.getClass(), o)));
     }
 
     @Override
     public void subscribe(Class<?> klass) {
-        subscribe(staticListenerCache.computeIfAbsent(klass, k -> getListeners(k, null)));
+        subscribe(staticListenerCache.computeIfAbsent(klass, k -> createListeners(k, null)));
     }
 
     private void subscribe(List<IListener> listeners) {
@@ -134,13 +141,51 @@ public class EventBus implements IEventBus {
         if (l != null) l.remove(listener);
     }
 
-    private List<IListener> getListeners(Class<?> klass, Object object) {
+    private List<IListener> createListeners(Class<?> klass, Object object) {
         List<IListener> listeners = new ArrayList<>();
 
         while (klass != Object.class) {
+            MethodHandles.Lookup lookup = null;
+
             for (Method method : klass.getDeclaredMethods()) {
-                if (isValid(method) && (object != null || Modifier.isStatic(method.getModifiers()))) {
-                    listeners.add(new LambdaListener(getLambdaFactory(klass), klass, object, method));
+                // skip invalid methods
+                boolean isStatic = Modifier.isStatic(method.getModifiers());
+                if (!isValid(method) || (object == null && !isStatic)) {
+                    continue;
+                }
+
+                // get or create lambda factory
+                WeakReference<MethodHandle> ref = LAMBDA_FACTORY_CACHE.get(method);
+                MethodHandle lambdaFactory = ref != null ? ref.get() : null;
+                try {
+                    if (lambdaFactory == null) {
+                        // lazily search for lookup infos
+                        if (lookup == null) {
+                            lookup = getLookupInfo(klass).in(klass);
+                        }
+
+                        lambdaFactory = LambdaMetafactory.metafactory(
+                            lookup, "accept",
+                            isStatic ? MethodType.methodType(Consumer.class) : MethodType.methodType(Consumer.class, klass),
+                            MethodType.methodType(void.class, Object.class),
+                            lookup.unreflect(method),
+                            MethodType.methodType(void.class, method.getParameters()[0].getType())
+                        ).getTarget();
+
+                        if (!isStatic) {
+                            lambdaFactory = lambdaFactory.asType(MethodType.methodType(Consumer.class, Object.class));
+                        }
+
+                        LAMBDA_FACTORY_CACHE.put(method, new WeakReference<>(lambdaFactory));
+                    }
+
+                    listeners.add(new LambdaListener(lambdaFactory, object, method));
+                } catch (Throwable throwable) {
+                    String message = String.format(
+                        "Could not create lambda listener for '%s.%s(%s)'.",
+                        klass.getSimpleName(), method.getName(), method.getParameters()[0].getType().getSimpleName()
+                    );
+                    throw new IllegalStateException(message, throwable);
                 }
             }
 
@@ -158,7 +203,7 @@ public class EventBus implements IEventBus {
         return !method.getParameters()[0].getType().isPrimitive();
     }
 
-    private MethodHandles.Lookup getLambdaFactory(Class<?> klass) {
+    private MethodHandles.Lookup getLookupInfo(Class<?> klass) {
         synchronized (lookupInfos) {
             for (LookupInfo info : lookupInfos) {
                 if (klass.getName().startsWith(info.packagePrefix)) return info.lookup;
