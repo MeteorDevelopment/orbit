@@ -54,13 +54,17 @@ public class LambdaListener implements IListener {
                     MethodType.methodType(void.class, method.getParameters()[0].getType())
                 ).getTarget();
 
+                if (!isStatic) {
+                    lambdaFactory = lambdaFactory.asType(MethodType.methodType(Consumer.class, Object.class));
+                }
+
                 LAMBDA_FACTORY_CACHE.put(method, new WeakReference<>(lambdaFactory));
             }
 
             assert lambdaFactory != null;
 
-            if (isStatic) this.executor = (Consumer<Object>) lambdaFactory.invoke();
-            else this.executor = (Consumer<Object>) lambdaFactory.invoke(object);
+            if (isStatic) this.executor = (Consumer<Object>) lambdaFactory.invokeExact();
+            else this.executor = (Consumer<Object>) lambdaFactory.invokeExact(object);
         } catch (Throwable throwable) {
             String message = String.format(
                 "Could not create lambda listener for '%s.%s(%s)'.",
