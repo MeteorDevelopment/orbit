@@ -19,11 +19,4 @@ public interface IListener {
      * @return The priority for this listener
      */
     int getPriority();
-
-    /**
-     * @return True if this listener is for static methods
-     * @deprecated Will be removed in a future version
-     */
-    @Deprecated
-    boolean isStatic();
 }

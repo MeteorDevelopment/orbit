@@ -1,18 +1,20 @@
 package meteordevelopment.orbit;
 
 import meteordevelopment.orbit.listeners.IListener;
-import meteordevelopment.orbit.listeners.LambdaListener;
+
+import java.lang.invoke.MethodHandles;
 
 /**
  * Manages event listeners.
  */
 public interface IEventBus {
     /**
-     * Registers a lambda factory to use with the specified package.
+     * Registers a lookup allowing orbit to reflect into private members inside the provided package. You can obtain a
+     * lookup instance by calling {@link MethodHandles#lookup()}.
      * @param packagePrefix Package prefix that this factory will be used for, eg "meteordevelopment.orbit"
-     * @param factory The factory to use
+     * @param lookup The lookup to use.
      */
-    void registerLambdaFactory(String packagePrefix, LambdaListener.Factory factory);
+    void registerLookup(String packagePrefix, MethodHandles.Lookup lookup);
 
     /**
      * Returns whether at least one event listener is currently registered for this event type.
@@ -21,6 +23,30 @@ public interface IEventBus {
      * @since 0.2.4
      */
     boolean isListening(Class<?> eventClass);
+
+    /**
+     * Returns whether the object is currently subscribed to the event bus.
+     * @param object The object to query
+     * @return whether the object is currently subscribed to the event bus
+     * @since 0.3.0
+     */
+    boolean isSubscribed(Object object);
+
+    /**
+     * Returns whether the class is currently subscribed to the event bus.
+     * @param klass The class to query
+     * @return whether the class is currently subscribed to the event bus
+     * @since 0.3.0
+     */
+    boolean isSubscribed(Class<?> klass);
+
+    /**
+     * Returns whether the listener is currently subscribed to the event bus.
+     * @param listener The listener to query
+     * @return whether the listener is currently subscribed to the event bus
+     * @since 0.3.0
+     */
+    boolean isSubscribed(IListener listener);
 
     /**
      * Posts an event to all subscribed event listeners.

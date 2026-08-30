@@ -37,9 +37,4 @@ public class ConsumerListener<T> implements IListener {
     public int getPriority() {
         return priority;
     }
-
-    @Override
-    public boolean isStatic() {
-        return false;
-    }
 }

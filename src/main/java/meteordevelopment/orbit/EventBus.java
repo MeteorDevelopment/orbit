@@ -3,39 +3,40 @@ package meteordevelopment.orbit;
 import meteordevelopment.orbit.listeners.IListener;
 import meteordevelopment.orbit.listeners.LambdaListener;
 
+import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Modifier;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /**
  * Default implementation of {@link IEventBus}.
  */
 public class EventBus implements IEventBus {
-    private static class LambdaFactoryInfo {
-        public final String packagePrefix;
-        public final LambdaListener.Factory factory;
+    private static final Map<Method, WeakReference<MethodHandle>> LAMBDA_FACTORY_CACHE = Collections.synchronizedMap(new WeakHashMap<>());
 
-        public LambdaFactoryInfo(String packagePrefix, LambdaListener.Factory factory) {
-            this.packagePrefix = packagePrefix;
-            this.factory = factory;
-        }
-    }
-
-    private final Map<Object, List<IListener>> listenerCache = new ConcurrentHashMap<>();
+    private final Map<Object, List<IListener>> listenerCache = Collections.synchronizedMap(new IdentityHashMap<>());
     private final Map<Class<?>, List<IListener>> staticListenerCache = new ConcurrentHashMap<>();
 
     private final Map<Class<?>, List<IListener>> listenerMap = new ConcurrentHashMap<>();
 
-    private final List<LambdaFactoryInfo> lambdaFactoryInfos = new ArrayList<>();
+    private final List<LookupInfo> lookupInfos = new ArrayList<>();
 
     @Override
-    public void registerLambdaFactory(String packagePrefix, LambdaListener.Factory factory) {
-        synchronized (lambdaFactoryInfos) {
-            lambdaFactoryInfos.add(new LambdaFactoryInfo(packagePrefix, factory));
+    public void registerLookup(String packagePrefix, MethodHandles.Lookup lookup) {
+        synchronized (lookupInfos) {
+            // to ensure the lookups are used correctly, they are ordered from longest to shortest
+            int i = 0;
+            while (i < lookupInfos.size() && lookupInfos.get(i).packagePrefix.length() > packagePrefix.length()) {
+                i++;
+            }
+            lookupInfos.add(i, new LookupInfo(packagePrefix, lookup));
         }
     }
 
@@ -43,6 +44,22 @@ public class EventBus implements IEventBus {
     public boolean isListening(Class<?> eventKlass) {
         List<IListener> listeners = listenerMap.get(eventKlass);
         return listeners != null && !listeners.isEmpty();
+    }
+
+    @Override
+    public boolean isSubscribed(Object object) {
+        return listenerCache.containsKey(object);
+    }
+
+    @Override
+    public boolean isSubscribed(Class<?> klass) {
+        return staticListenerCache.containsKey(klass);
+    }
+
+    @Override
+    public boolean isSubscribed(IListener listener) {
+        List<IListener> listeners = listenerMap.get(listener.getTarget());
+        return listeners != null && listeners.contains(listener);
     }
 
     @Override
@@ -74,30 +91,21 @@ public class EventBus implements IEventBus {
 
     @Override
     public void subscribe(Object object) {
-        subscribe(getListeners(object.getClass(), object), false);
+        subscribe(listenerCache.computeIfAbsent(object, o -> createListeners(o.getClass(), o)));
     }
 
     @Override
     public void subscribe(Class<?> klass) {
-        subscribe(getListeners(klass, null), true);
+        subscribe(staticListenerCache.computeIfAbsent(klass, k -> createListeners(k, null)));
+    }
+
+    private void subscribe(List<IListener> listeners) {
+        for (IListener listener : listeners) subscribe(listener);
     }
 
     @Override
     public void subscribe(IListener listener) {
-        subscribe(listener, false);
-    }
-
-    private void subscribe(List<IListener> listeners, boolean onlyStatic) {
-        for (IListener listener : listeners) subscribe(listener, onlyStatic);
-    }
-
-    private void subscribe(IListener listener, boolean onlyStatic) {
-        if (onlyStatic) {
-            if (listener.isStatic()) insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
-        }
-        else {
-            insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
-        }
+        insert(listenerMap.computeIfAbsent(listener.getTarget(), aClass -> new CopyOnWriteArrayList<>()), listener);
     }
 
     private void insert(List<IListener> listeners, IListener listener) {
@@ -111,63 +119,80 @@ public class EventBus implements IEventBus {
 
     @Override
     public void unsubscribe(Object object) {
-        unsubscribe(getListeners(object.getClass(), object), false);
+        List<IListener> listeners = listenerCache.remove(object);
+        if (listeners != null) unsubscribe(listeners);
+        // for backwards-compatibility
+        else unsubscribe(object.getClass());
     }
 
     @Override
     public void unsubscribe(Class<?> klass) {
-        unsubscribe(getListeners(klass, null), true);
+        List<IListener> staticListeners = staticListenerCache.remove(klass);
+        if (staticListeners != null) unsubscribe(staticListeners);
+    }
+
+    private void unsubscribe(List<IListener> listeners) {
+        for (IListener listener : listeners) unsubscribe(listener);
     }
 
     @Override
     public void unsubscribe(IListener listener) {
-        unsubscribe(listener, false);
-    }
-
-    private void unsubscribe(List<IListener> listeners, boolean staticOnly) {
-        for (IListener listener : listeners) unsubscribe(listener, staticOnly);
-    }
-
-    private void unsubscribe(IListener listener, boolean staticOnly) {
         List<IListener> l = listenerMap.get(listener.getTarget());
-
-        if (l != null) {
-            if (staticOnly) {
-                if (listener.isStatic()) l.remove(listener);
-            }
-            else l.remove(listener);
-        }
+        if (l != null) l.remove(listener);
     }
 
-    private List<IListener> getListeners(Class<?> klass, Object object) {
-        Function<Object, List<IListener>> func = o -> {
-            List<IListener> listeners = new CopyOnWriteArrayList<>();
+    private List<IListener> createListeners(Class<?> klass, Object object) {
+        List<IListener> listeners = new ArrayList<>();
 
-            getListeners(listeners, klass, object);
+        while (klass != Object.class) {
+            MethodHandles.Lookup lookup = null;
 
-            return listeners;
-        };
+            for (Method method : klass.getDeclaredMethods()) {
+                // skip invalid methods
+                boolean isStatic = Modifier.isStatic(method.getModifiers());
+                if (!isValid(method) || (object == null && !isStatic)) {
+                    continue;
+                }
 
-        if (object == null) return staticListenerCache.computeIfAbsent(klass, func);
+                // get or create lambda factory
+                WeakReference<MethodHandle> ref = LAMBDA_FACTORY_CACHE.get(method);
+                MethodHandle lambdaFactory = ref != null ? ref.get() : null;
+                try {
+                    if (lambdaFactory == null) {
+                        // lazily search for lookup infos
+                        if (lookup == null) {
+                            lookup = getLookupInfo(klass).in(klass);
+                        }
 
-        // We need to check if the instances are the same and avoid using .equals() and .hashCode()
-        for (Object key : listenerCache.keySet()) {
-            if (key == object) return listenerCache.get(object);
-        }
+                        lambdaFactory = LambdaMetafactory.metafactory(
+                            lookup, "accept",
+                            isStatic ? MethodType.methodType(Consumer.class) : MethodType.methodType(Consumer.class, klass),
+                            MethodType.methodType(void.class, Object.class),
+                            lookup.unreflect(method),
+                            MethodType.methodType(void.class, method.getParameters()[0].getType())
+                        ).getTarget();
 
-        List<IListener> listeners = func.apply(object);
-        listenerCache.put(object, listeners);
-        return listeners;
-    }
+                        if (!isStatic) {
+                            lambdaFactory = lambdaFactory.asType(MethodType.methodType(Consumer.class, Object.class));
+                        }
 
-    private void getListeners(List<IListener> listeners, Class<?> klass, Object object) {
-        for (Method method : klass.getDeclaredMethods()) {
-            if (isValid(method)) {
-                listeners.add(new LambdaListener(getLambdaFactory(klass), klass, object, method));
+                        LAMBDA_FACTORY_CACHE.put(method, new WeakReference<>(lambdaFactory));
+                    }
+
+                    listeners.add(new LambdaListener(lambdaFactory, object, method));
+                } catch (Throwable throwable) {
+                    String message = String.format(
+                        "Could not create lambda listener for '%s.%s(%s)'.",
+                        klass.getSimpleName(), method.getName(), method.getParameters()[0].getType().getSimpleName()
+                    );
+                    throw new IllegalStateException(message, throwable);
+                }
             }
+
+            klass = klass.getSuperclass();
         }
 
-        if (klass.getSuperclass() != null) getListeners(listeners, klass.getSuperclass(), object);
+        return new CopyOnWriteArrayList<>(listeners);
     }
 
     private boolean isValid(Method method) {
@@ -178,10 +203,10 @@ public class EventBus implements IEventBus {
         return !method.getParameters()[0].getType().isPrimitive();
     }
 
-    private LambdaListener.Factory getLambdaFactory(Class<?> klass) {
-        synchronized (lambdaFactoryInfos) {
-            for (LambdaFactoryInfo info : lambdaFactoryInfos) {
-                if (klass.getName().startsWith(info.packagePrefix)) return info.factory;
+    private MethodHandles.Lookup getLookupInfo(Class<?> klass) {
+        synchronized (lookupInfos) {
+            for (LookupInfo info : lookupInfos) {
+                if (klass.getName().startsWith(info.packagePrefix)) return info.lookup;
             }
         }
 
